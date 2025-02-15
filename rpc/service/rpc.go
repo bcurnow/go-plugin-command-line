@@ -1,70 +1,29 @@
 package service
 
 import (
-	"net"
 	"net/rpc"
-	"os"
 
+	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
-	"github.com/hashicorp/go-plugin"
-	"github.com/hashicorp/go-plugin/runner"
+	goplugin "github.com/hashicorp/go-plugin"
 )
 
-type Addr struct {
-	Net  string
-	Name string
+// The goplugin.Plugin implementation for a Service which returns the RCP Client or Server
+type Plugin struct{ Impl service.Service }
+
+func (p *Plugin) Server(*goplugin.MuxBroker) (interface{}, error) {
+	return &RPCServer{Impl: p.Impl}, nil
 }
 
-// This struct mirrors plugin.ReattachConfig but only includes types that are registered with gob to avoid issues
-type ReattachConfig struct {
-	Protocol        plugin.Protocol
-	ProtocolVersion int
-	Addr            Addr
-	Pid             int
-	ReattachFunc    runner.ReattachFunc
-	Test            bool
-}
-
-func (rc *ReattachConfig) ToReattachConfig() *plugin.ReattachConfig {
-	return &plugin.ReattachConfig{
-		Protocol:        rc.Protocol,
-		ProtocolVersion: rc.ProtocolVersion,
-		Addr:            &net.UnixAddr{Name: rc.Addr.Name, Net: rc.Addr.Net},
-		Pid:             rc.Pid,
-		ReattachFunc:    rc.ReattachFunc,
-		Test:            rc.Test,
-	}
-}
-
-type RPCClientInfo struct {
-	ReattachConfig ReattachConfig
-	PluginName     string
-	PluginType     string
-}
-
-func (i *RPCClientInfo) Name() string {
-	return i.PluginName
-}
-
-func (i *RPCClientInfo) Type() string {
-	return i.PluginType
-}
-
-// The plugin.Plugin implementation for a Service which returns the RCP Client or Server
-type ServicePlugin struct{ Impl service.Service }
-
-func (p *ServicePlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	return &ServiceRPCServer{Impl: p.Impl}, nil
-}
-
-func (ServicePlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	return &ServiceRPCClient{client: c}, nil
+func (Plugin) Client(b *goplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+	return &RPCClient{client: c}, nil
 }
 
 // The RPC client implementation of a Service
-type ServiceRPCClient struct{ client *rpc.Client }
+type RPCClient struct{ client *rpc.Client }
 
-func (c *ServiceRPCClient) Name() string {
+func (c *RPCClient) Name() string {
+	defer plugin.HandlePanic()
 	var resp string
 	err := c.client.Call("Plugin.Name", new(interface{}), &resp)
 	if err != nil {
@@ -73,70 +32,54 @@ func (c *ServiceRPCClient) Name() string {
 	return resp
 }
 
-func (c *ServiceRPCClient) Type() string {
+func (c *RPCClient) Type() plugin.Type {
+	defer plugin.HandlePanic()
 	var resp string
 	err := c.client.Call("Plugin.Type", new(interface{}), &resp)
 	if err != nil {
 		panic(err)
 	}
-	return resp
+	return plugin.Parse(resp)
 }
 
-func (c *ServiceRPCClient) Execute(arg string) error {
+func (c *RPCClient) Log(val string) {
+	defer plugin.HandlePanic()
 	var resp interface{}
-	return c.client.Call("Plugin.Execute", map[string]interface{}{
-		"arg": arg,
+
+	err := c.client.Call("Plugin.Log", map[string]interface{}{
+		"val": val,
 	}, &resp)
+
+	if err != nil {
+		service.Logger.Error("Error during Log", "Error", err)
+		panic(err)
+	}
 }
 
 // The RPC server implementation of a Service
 // NOTE: While this struct will have implementations of the Service methods, they will have different signatures
 // required by the RPC package.
-type ServiceRPCServer struct{ Impl service.Service }
+type RPCServer struct{ Impl service.Service }
 
 // The first argument, args interface{}, is RCP speak for no parameters
 // resp is the return value and the type should match the Service method (e.g. string)
-func (s *ServiceRPCServer) Name(args interface{}, resp *string) error {
+func (s *RPCServer) Name(args interface{}, resp *string) error {
+	defer plugin.HandlePanic()
 	*resp = s.Impl.Name()
 	return nil
 }
 
 // The first argument, args interface{}, is RCP speak for no parameters
 // resp is the return value and the type should match the Service method (e.g. string)
-func (s *ServiceRPCServer) Type(args interface{}, resp *string) error {
-	*resp = s.Impl.Type()
+func (s *RPCServer) Type(args interface{}, resp *string) error {
+	defer plugin.HandlePanic()
+	*resp = s.Impl.Type().String()
 	return nil
 }
 
-func (s *ServiceRPCServer) Execute(args map[string]interface{}, resp *interface{}) error {
-	return s.Impl.Execute(args["arg"].(string))
-}
-
-func ToServices(serviceInfo map[string]service.ReconnectInfo, theService plugin.Plugin) (map[string]service.Service, error) {
-	services := make(map[string]service.Service)
-
-	for name, serviceInfo := range serviceInfo {
-		rpcClientInfo := serviceInfo.(*RPCClientInfo)
-		// Create a new PluginDef using the ReattachConfig instead of a Cmd
-		pluginDef := plugin.NewClient(&plugin.ClientConfig{
-			HandshakeConfig: service.HandshakeConfig,
-			Plugins: map[string]plugin.Plugin{
-				name: theService,
-			},
-			Reattach:   rpcClientInfo.ReattachConfig.ToReattachConfig(),
-			Logger:     service.Logger,
-			Managed:    true,      // Allow the plugin runtime to manage this plugin
-			SyncStdout: os.Stdout, // Print any extra output to Stdout from the plugin to the host processes Stdout
-			// AutoMTLS:    true,      // Ensure that we're using MTLS for communication between the plugin and the host
-			SkipHostEnv: true, // Don't pass the host environment to the plugin to avoid security issues
-		})
-
-		service, err := service.ToService(pluginDef, name)
-		if err != nil {
-			return nil, err
-		}
-
-		services[name] = service
-	}
-	return services, nil
+func (s *RPCServer) Log(args map[string]interface{}, resp *interface{}) error {
+	defer plugin.HandlePanic()
+	loggerService := s.Impl.(service.LoggerService)
+	loggerService.Log(args["val"].(string))
+	return nil
 }

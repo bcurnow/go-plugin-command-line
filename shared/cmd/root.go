@@ -7,9 +7,8 @@ import (
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
 	"github.com/bcurnow/go-plugin-command-line/shared/logging"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
-	"github.com/bcurnow/go-plugin-command-line/shared/util"
 	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
+	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +38,7 @@ func init() {
 }
 
 // This is the main entry point for Cobra
-func Execute(serviceRegister service.ServiceRegister, commandRegister command.CommandRegister) {
+func Execute(serviceRegister service.Register, commandRegister command.Register) {
 	rootCmd.PreRunE = func(cmd *cobra.Command, args []string) error {
 		return preRun(cmd, serviceRegister, commandRegister)
 
@@ -51,7 +50,7 @@ func Execute(serviceRegister service.ServiceRegister, commandRegister command.Co
 	}
 }
 
-func preRun(cmd *cobra.Command, serviceRegister service.ServiceRegister, commandRegister command.CommandRegister) error {
+func preRun(cmd *cobra.Command, serviceRegister service.Register, commandRegister command.Register) error {
 	// Very first thing to do, set the log level
 	logger.SetLevel(hclog.LevelFromString(logLevel))
 	if logger.GetLevel() == hclog.NoLevel {
@@ -60,12 +59,12 @@ func preRun(cmd *cobra.Command, serviceRegister service.ServiceRegister, command
 		logger.Error("Invalid log level specified, defaulting to Warn", "LogLevel", logLevel)
 	}
 
-	serviceInfo, err := serviceRegister.RegisterServices(serviceDir)
+	serviceInfo, err := serviceRegister.Register(serviceDir)
 	if err != nil {
 		return err
 	}
 
-	err = commandRegister.RegisterCommands(pluginDir, cmd, serviceInfo)
+	err = commandRegister.Register(pluginDir, cmd, serviceInfo)
 	if err != nil {
 		return err
 	}
@@ -107,51 +106,5 @@ func run(cmd *cobra.Command, args []string) error {
 
 func cleanup() {
 	logger.Debug("Cleaning up the clients...")
-	plugin.CleanupClients()
-}
-
-// Traverses the dir and registers any executable found as a subcommand
-func RegisterCommands(dir string, cmd *cobra.Command, impl plugin.Plugin, serviceInfo map[string]service.ReconnectInfo) error {
-	err := util.RegisterPlugins("commands", dir, func(pluginName string, pluginCmd string) error {
-		// Build a new plugin definition
-		pluginDef := util.GetPluginClient("command", pluginName, pluginCmd, command.HandshakeConfig, impl, command.Logger)
-
-		// Cast the raw plugin to the Command interface so we have access to the methods
-		plugin, err := command.ToCommand(pluginDef, pluginName)
-		if err != nil {
-			return err
-		}
-
-		// Set the services on the command
-		err = plugin.SetServices(serviceInfo)
-		if err != nil {
-			return err
-		}
-
-		err = addCommand(cmd, pluginName, plugin)
-		if err != nil {
-			return err
-		}
-
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Adds the supplied pluginName as a subcommand to the supplied cmd
-func addCommand(cmd *cobra.Command, pluginName string, plugin command.Command) error {
-
-	// Create a new command which executes this plugin
-	cmd.AddCommand(&cobra.Command{
-		Use: pluginName,
-		Run: func(cmd *cobra.Command, args []string) {
-			plugin.Execute(args)
-		},
-	})
-
-	return nil
+	goplugin.CleanupClients()
 }

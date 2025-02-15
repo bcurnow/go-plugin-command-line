@@ -3,33 +3,32 @@ package command
 import (
 	"net/rpc"
 
-	_ "github.com/bcurnow/go-plugin-command-line/rpc/util"
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
+	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
-	"github.com/hashicorp/go-plugin"
+	goplugin "github.com/hashicorp/go-plugin"
 )
 
 // The plugin.Plugin implementation for a Command which returns the RCP Client or Server
-type CommandPlugin struct {
-	plugin.Plugin
+type Plugin struct {
 	Impl command.Command
 }
 
-func (p *CommandPlugin) Server(*plugin.MuxBroker) (interface{}, error) {
-	return &CommandRPCServer{Impl: p.Impl}, nil
+func (p *Plugin) Server(*goplugin.MuxBroker) (interface{}, error) {
+	return &RPCServer{Impl: p.Impl}, nil
 }
 
-func (p *CommandPlugin) Client(b *plugin.MuxBroker, c *rpc.Client) (interface{}, error) {
-	return &CommandRPCClient{client: c}, nil
+func (p *Plugin) Client(b *goplugin.MuxBroker, c *rpc.Client) (interface{}, error) {
+	return &RPCClient{client: c}, nil
 }
 
 // The RPC client implementation of a Command
-type CommandRPCClient struct {
-	command.Command
+type RPCClient struct {
 	client *rpc.Client
 }
 
-func (c *CommandRPCClient) Help() string {
+func (c *RPCClient) Help() string {
+	defer plugin.HandlePanic()
 	var resp string
 	err := c.client.Call("Plugin.Help", new(interface{}), &resp)
 	if err != nil {
@@ -38,14 +37,16 @@ func (c *CommandRPCClient) Help() string {
 	return resp
 }
 
-func (c *CommandRPCClient) Execute(args []string) error {
+func (c *RPCClient) Execute(args []string) error {
+	defer plugin.HandlePanic()
 	var resp interface{}
 	return c.client.Call("Plugin.Execute", map[string]interface{}{
 		"args": args,
 	}, &resp)
 }
 
-func (c *CommandRPCClient) SetServices(serviceInfo map[string]service.ReconnectInfo) error {
+func (c *RPCClient) SetServices(serviceInfo map[string]service.ReconnectInfo) error {
+	defer plugin.HandlePanic()
 	var resp interface{}
 	return c.client.Call("Plugin.SetServices", map[string]interface{}{
 		"serviceInfo": serviceInfo,
@@ -55,11 +56,12 @@ func (c *CommandRPCClient) SetServices(serviceInfo map[string]service.ReconnectI
 // The RPC server implementation of a Command
 // NOTE: While this struct will have implementations of the Command methods, they will have different signatures
 // required by the RPC package.
-type CommandRPCServer struct{ Impl command.Command }
+type RPCServer struct{ Impl command.Command }
 
 // The first argument, args interface{}, is RCP speak for no parameters
 // resp is the return value and the type should match the Command method (e.g. string)
-func (s *CommandRPCServer) Help(args interface{}, resp *string) error {
+func (s *RPCServer) Help(args interface{}, resp *string) error {
+	defer plugin.HandlePanic()
 	*resp = s.Impl.Help()
 	return nil
 }
@@ -67,10 +69,12 @@ func (s *CommandRPCServer) Help(args interface{}, resp *string) error {
 // The first argument, map[string]interface{}, is RCP speak for parameters, each parameter will be
 // mapped to a key in the map.
 // resp is a required argument but is not used in this case
-func (s *CommandRPCServer) Execute(args map[string]interface{}, resp *interface{}) error {
+func (s *RPCServer) Execute(args map[string]interface{}, resp *interface{}) error {
+	defer plugin.HandlePanic()
 	return s.Impl.Execute(args["args"].([]string))
 }
 
-func (s *CommandRPCServer) SetServices(args map[string]interface{}, resp *interface{}) error {
+func (s *RPCServer) SetServices(args map[string]interface{}, resp *interface{}) error {
+	defer plugin.HandlePanic()
 	return s.Impl.SetServices(args["serviceInfo"].(map[string]service.ReconnectInfo))
 }

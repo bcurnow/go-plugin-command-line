@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	rpcservice "github.com/bcurnow/go-plugin-command-line/rpc/service"
+	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
-	"github.com/bcurnow/go-plugin-command-line/shared/util"
 )
 
 // This is the instance of the logger service
@@ -19,16 +19,15 @@ func (c *LoggerService) Name() string {
 	return fmt.Sprintf("LoggerService pid: %s", strconv.Itoa(os.Getpid()))
 }
 
-func (c *LoggerService) Type() string {
-	return "LoggerService"
+func (c *LoggerService) Type() plugin.Type {
+	return plugin.Logger
 }
 
-func (c *LoggerService) Execute(arg string) error {
-	fmt.Println("3.0.0")
-	return nil
+func (c *LoggerService) Log(val string) {
+	fmt.Println(val)
 }
 
 // Starts the RCP server
 func main() {
-	util.StartPlugin(&rpcservice.ServicePlugin{Impl: &LoggerService{}}, "logger", service.HandshakeConfig)
+	plugin.Start(&rpcservice.Plugin{Impl: &LoggerService{}}, "logger", service.HandshakeConfig)
 }
