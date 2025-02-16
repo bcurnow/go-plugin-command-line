@@ -2,8 +2,6 @@ package service
 
 import (
 	"encoding/gob"
-
-	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 )
 
 func init() {
@@ -14,19 +12,13 @@ func init() {
 // Marker interface for all Services
 type Service interface {
 	Name() string
-	Type() plugin.Type
-}
-
-// Logger type of service
-type LoggerService interface {
-	Service
+	// Ideally, this would default a more useful set of methods, this is just an example
 	Log(val string)
 }
 
 // Marker interface for an object that provides information necessary to reconnect to a service
 type ReconnectInfo interface {
 	Name() string
-	Type() plugin.Type
 }
 
 type Register interface {

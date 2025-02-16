@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 
 	rpcservice "github.com/bcurnow/go-plugin-command-line/rpc/service"
 	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
@@ -16,11 +14,7 @@ type LoggerService struct {
 }
 
 func (c *LoggerService) Name() string {
-	return fmt.Sprintf("LoggerService pid: %s", strconv.Itoa(os.Getpid()))
-}
-
-func (c *LoggerService) Type() plugin.Type {
-	return plugin.Logger
+	return "logger"
 }
 
 func (c *LoggerService) Log(val string) {

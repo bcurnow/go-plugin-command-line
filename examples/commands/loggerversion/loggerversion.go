@@ -14,7 +14,7 @@ import (
 )
 
 var (
-	services = make(map[plugin.Type]service.Service)
+	services = make(map[string]service.Service)
 )
 
 // This is the instance of the loggerversion command
@@ -40,20 +40,18 @@ func (c *CommandLoggerVersion) SetServices(serviceInfos map[string]service.Recon
 	return nil
 }
 
-// This is a hacky way to do this but works for an example
-// Probably need either a more complex schema-based mechanism (e.g. Terraform plugins)
-// Or individual typed Set methods for the different types of services
-func logger() service.LoggerService {
+// This isn't ideal in terms of service lookup but is sufficient for an example
+func logger() service.Service {
 	if nil == services {
 		// This command was not setup properly by the main program
 		panic(errors.New("services not initialized properly for command loggerversion"))
 	}
 
-	if nil == services[plugin.Logger] {
-		panic(errors.New("service of type Logger could not be found in command loggerversion"))
+	if nil == services["logger"] {
+		panic(errors.New("service 'logger' could not be found in command loggerversion"))
 	}
 
-	return services[plugin.Logger].(service.LoggerService)
+	return services["logger"]
 }
 
 // Starts the RCP server

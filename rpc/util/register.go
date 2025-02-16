@@ -40,7 +40,6 @@ func (r *RPCServiceRegister) Register(serviceDir string) (map[string]service.Rec
 				Test:         pluginClient.ReattachConfig().Test,
 			},
 			PluginName: pluginName,
-			PluginType: service.Type(),
 		}
 	})
 }

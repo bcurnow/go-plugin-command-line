@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
-	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
 	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-plugin/runner"
@@ -14,15 +13,10 @@ import (
 type RPCClientInfo struct {
 	ReattachConfig ReattachConfig
 	PluginName     string
-	PluginType     plugin.Type
 }
 
 func (i *RPCClientInfo) Name() string {
 	return i.PluginName
-}
-
-func (i *RPCClientInfo) Type() plugin.Type {
-	return i.PluginType
 }
 
 // This struct mirrors plugin.ReattachConfig but only includes types that are registered with gob to avoid issues
@@ -53,9 +47,9 @@ func (rc *ReattachConfig) ReattachConfig() *goplugin.ReattachConfig {
 }
 
 // Reattach to the existing RPC service and return a Service
-func Services(serviceInfos map[string]service.ReconnectInfo, svc goplugin.Plugin) (map[plugin.Type]service.Service, error) {
+func Services(serviceInfos map[string]service.ReconnectInfo, svc goplugin.Plugin) (map[string]service.Service, error) {
 	command.Logger.Debug("Reconstituting services", "ReconnectInfo", serviceInfos)
-	services := make(map[plugin.Type]service.Service)
+	services := make(map[string]service.Service)
 
 	for name, serviceInfo := range serviceInfos {
 		rpcClientInfo := serviceInfo.(*RPCClientInfo)
@@ -79,7 +73,7 @@ func Services(serviceInfos map[string]service.ReconnectInfo, svc goplugin.Plugin
 			return nil, err
 		}
 
-		services[service.Type()] = service
+		services[service.Name()] = service
 	}
 	return services, nil
 }
