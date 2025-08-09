@@ -8,6 +8,7 @@
   * [Running](#running)
     * [RPC](#rpc)
     * [gRPC](#grpc)
+      * [Protocol Buffers](#protocol-buffers)
 
 <!-- /TOC -->
 
@@ -56,5 +57,13 @@ To run the program: `go run rpc/main.go <command>`
 To access the built-in Cobra help: `go run rpc/main.go help`
 
 #### gRPC
+
+##### Protocol Buffers
+
+The gRPC version uses Google Protocol buffers which need to be generated:
+```
+cd grpc
+buf generate
+```
 
 This is a work in progress...

@@ -5,7 +5,6 @@ import (
 
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
 	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
-	"github.com/bcurnow/go-plugin-command-line/shared/service"
 	goplugin "github.com/hashicorp/go-plugin"
 )
 
@@ -45,7 +44,7 @@ func (c *RPCClient) Execute(args []string) error {
 	}, &resp)
 }
 
-func (c *RPCClient) SetServices(serviceInfo map[string]service.ReconnectInfo) error {
+func (c *RPCClient) SetServices(serviceInfo map[string]plugin.Reattach) error {
 	defer plugin.HandlePanic()
 	var resp interface{}
 	return c.client.Call("Plugin.SetServices", map[string]interface{}{
@@ -76,5 +75,5 @@ func (s *RPCServer) Execute(args map[string]interface{}, resp *interface{}) erro
 
 func (s *RPCServer) SetServices(args map[string]interface{}, resp *interface{}) error {
 	defer plugin.HandlePanic()
-	return s.Impl.SetServices(args["serviceInfo"].(map[string]service.ReconnectInfo))
+	return s.Impl.SetServices(args["serviceInfo"].(map[string]plugin.Reattach))
 }

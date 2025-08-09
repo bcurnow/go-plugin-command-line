@@ -25,9 +25,10 @@ var (
 	logger = logging.Logger()
 
 	// Flags for the root command
-	pluginDir  string
-	serviceDir string
-	logLevel   string
+	pluginDir   string
+	serviceDir  string
+	logLevel    string
+	pluginDebug bool
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&pluginDir, "plugin-dir", "d", "./commands", "The directory where the plugins are located")
 	rootCmd.PersistentFlags().StringVarP(&serviceDir, "service-dir", "s", "./services", "The directory where the services are located")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", "warn", "The log level (trace, debug, info, warn, error, fatal), not case sensitive")
+	rootCmd.PersistentFlags().BoolVarP(&pluginDebug, "plugin-debug", "p", false, "Enables full debug on plugins which will write all stderr output from plugins to the log")
 }
 
 // This is the main entry point for Cobra
@@ -53,6 +55,11 @@ func Execute(serviceRegister service.Register, commandRegister command.Register)
 func preRun(cmd *cobra.Command, serviceRegister service.Register, commandRegister command.Register) error {
 	// Very first thing to do, set the log level
 	logger.SetLevel(hclog.LevelFromString(logLevel))
+
+	if pluginDebug {
+		logging.EnablePluginDebug()
+	}
+
 	if logger.GetLevel() == hclog.NoLevel {
 		// Default to Warn
 		logger.SetLevel(hclog.Warn)
@@ -96,7 +103,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	//If we found the command, use the remaining args as arguments to that command and execute it
 	foundCmd.SetArgs(remainingArgs)
-	logger.Debug("Executing command", "Name", foundCmd.Name(), "Args", remainingArgs)
+	logger.Debug("Executing command", "Command Name", foundCmd.Name(), "Args", remainingArgs)
 	err = foundCmd.Execute()
 	if err != nil {
 		return err
