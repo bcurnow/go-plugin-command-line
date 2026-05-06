@@ -3,7 +3,6 @@ package command
 import (
 	"github.com/bcurnow/go-plugin-command-line/shared/logging"
 	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
-	"github.com/bcurnow/go-plugin-command-line/shared/service"
 	goplugin "github.com/hashicorp/go-plugin"
 	"github.com/spf13/cobra"
 )
@@ -21,10 +20,21 @@ var (
 )
 
 // Traverses the dir and registers any executable found as a subcommand
-func RegisterDir(dir string, cmd *cobra.Command, impl goplugin.Plugin, serviceInfo map[string]service.ReconnectInfo) error {
+func RegisterDir(dir string, cmd *cobra.Command, impl goplugin.Plugin, allowedProtocols []goplugin.Protocol, serviceInfo map[string]plugin.Reattach) error {
 	err := plugin.Register("commands", dir, func(pluginName string, pluginCmd string) error {
 		// Build a new plugin definition
-		pluginDef := plugin.Client("command", pluginName, pluginCmd, HandshakeConfig, impl, Logger)
+		pluginDef := plugin.Client("command", &plugin.CommandClientConfigBuilder{
+			BaseClientConfigBuilder: plugin.BaseClientConfigBuilder{
+				HandshakeConfig: HandshakeConfig,
+				Plugins: map[string]goplugin.Plugin{
+					pluginName: impl,
+				},
+				Name:             pluginName,
+				Logger:           Logger,
+				AllowedProtocols: allowedProtocols,
+			},
+			PluginCmd: pluginCmd,
+		})
 
 		// Cast the raw plugin to the Command interface so we have access to the methods
 		plugin, err := ToCommand(pluginDef, pluginName)
@@ -33,7 +43,7 @@ func RegisterDir(dir string, cmd *cobra.Command, impl goplugin.Plugin, serviceIn
 		}
 
 		// Set the services on the command
-		Logger.Debug("Setting services", "Name", pluginName, "ServiceInfo", serviceInfo)
+		Logger.Debug("Setting services", "Plugin Name", pluginName, "ServiceInfo", serviceInfo)
 		err = plugin.SetServices(serviceInfo)
 		if err != nil {
 			return err

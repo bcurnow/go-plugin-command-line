@@ -32,16 +32,6 @@ func (c *RPCClient) Name() string {
 	return resp
 }
 
-func (c *RPCClient) Type() plugin.Type {
-	defer plugin.HandlePanic()
-	var resp string
-	err := c.client.Call("Plugin.Type", new(interface{}), &resp)
-	if err != nil {
-		panic(err)
-	}
-	return plugin.Parse(resp)
-}
-
 func (c *RPCClient) Log(val string) {
 	defer plugin.HandlePanic()
 	var resp interface{}
@@ -69,17 +59,11 @@ func (s *RPCServer) Name(args interface{}, resp *string) error {
 	return nil
 }
 
-// The first argument, args interface{}, is RCP speak for no parameters
-// resp is the return value and the type should match the Service method (e.g. string)
-func (s *RPCServer) Type(args interface{}, resp *string) error {
-	defer plugin.HandlePanic()
-	*resp = s.Impl.Type().String()
-	return nil
-}
-
+// The first agument is the set of args which were provided to the method, these will match
+// with the RPCClient definition above
+// The second argument is unused
 func (s *RPCServer) Log(args map[string]interface{}, resp *interface{}) error {
 	defer plugin.HandlePanic()
-	loggerService := s.Impl.(service.LoggerService)
-	loggerService.Log(args["val"].(string))
+	s.Impl.Log(args["val"].(string))
 	return nil
 }

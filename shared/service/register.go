@@ -18,19 +18,34 @@ var (
 )
 
 // Traverses the dir and registers any executable found as a Service
-func RegisterDir(dir string, service goplugin.Plugin, serviceInfo func(client *goplugin.Client, name string, service Service) ReconnectInfo) (map[string]ReconnectInfo, error) {
-	serviceInfos := make(map[string]ReconnectInfo)
+func RegisterDir(dir string, service goplugin.Plugin, allowedProtocols []goplugin.Protocol, serviceInfo func(client *goplugin.Client, name string, service Service) plugin.Reattach) (map[string]plugin.Reattach, error) {
+	serviceInfos := make(map[string]plugin.Reattach)
 	err := plugin.Register("services", dir, func(pluginName string, pluginCmd string) error {
-		client := plugin.Client("service", pluginName, pluginCmd, HandshakeConfig, service, Logger)
+		client := plugin.Client("service", &plugin.CommandClientConfigBuilder{
+			BaseClientConfigBuilder: plugin.BaseClientConfigBuilder{
+				HandshakeConfig: HandshakeConfig,
+				Plugins: map[string]goplugin.Plugin{
+					pluginName: service,
+				},
+				Name:             pluginName,
+				Logger:           Logger,
+				AllowedProtocols: allowedProtocols,
+			},
+			PluginCmd: pluginCmd,
+		})
 
+		Logger.Debug("Retrieved the client")
 		// Cast the raw plugin to the Service interface so we have access to the methods
 		plugin, err := ToService(client, pluginName)
 		if err != nil {
 			return err
 		}
+		Logger.Debug("Converted to Service")
 
 		// Instead of storing the actual client in the map, we're going to store information that will allow the command to reattach to the services Server
+		Logger.Debug("About to create serviceInfo")
 		serviceInfos[pluginName] = serviceInfo(client, pluginName, plugin)
+		Logger.Debug("Converted to serviceInfo")
 
 		return nil
 	})

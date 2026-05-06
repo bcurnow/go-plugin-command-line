@@ -4,12 +4,8 @@ import (
 	"fmt"
 
 	rpccommand "github.com/bcurnow/go-plugin-command-line/rpc/command"
-	// This is an ugly hack but we need to ensure that the gob registration occurs
-	_ "github.com/bcurnow/go-plugin-command-line/rpc/util"
-
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
 	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
-	"github.com/bcurnow/go-plugin-command-line/shared/service"
 )
 
 // This is the instance of the version command
@@ -26,11 +22,11 @@ func (c *CommandVersion) Execute(args []string) error {
 	return nil
 }
 
-func (c *CommandVersion) SetServices(serviceInfo map[string]service.ReconnectInfo) error {
+func (c *CommandVersion) SetServices(serviceInfo map[string]plugin.Reattach) error {
 	return nil
 }
 
 // Starts the RCP server
 func main() {
-	plugin.Start(&rpccommand.Plugin{Impl: &CommandVersion{}}, "version", command.HandshakeConfig)
+	plugin.Start(&rpccommand.Plugin{Impl: &CommandVersion{}}, "version", command.HandshakeConfig, nil)
 }

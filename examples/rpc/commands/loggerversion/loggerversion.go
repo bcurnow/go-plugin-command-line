@@ -5,16 +5,13 @@ import (
 
 	rpccommand "github.com/bcurnow/go-plugin-command-line/rpc/command"
 	rpcservice "github.com/bcurnow/go-plugin-command-line/rpc/service"
-
-	// This is an ugly hack but we need to ensure that the gob registration occurs
-	_ "github.com/bcurnow/go-plugin-command-line/rpc/util"
 	"github.com/bcurnow/go-plugin-command-line/shared/command"
 	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
 	"github.com/bcurnow/go-plugin-command-line/shared/service"
 )
 
 var (
-	services = make(map[plugin.Type]service.Service)
+	services = make(map[string]service.Service)
 )
 
 // This is the instance of the loggerversion command
@@ -31,8 +28,8 @@ func (c *CommandLoggerVersion) Execute(args []string) error {
 	return nil
 }
 
-func (c *CommandLoggerVersion) SetServices(serviceInfos map[string]service.ReconnectInfo) error {
-	serviceMap, err := rpcservice.Services(serviceInfos, &rpcservice.Plugin{})
+func (c *CommandLoggerVersion) SetServices(reattaches map[string]plugin.Reattach) error {
+	serviceMap, err := rpcservice.Services(reattaches, &rpcservice.Plugin{})
 	if err != nil {
 		return err
 	}
@@ -40,23 +37,21 @@ func (c *CommandLoggerVersion) SetServices(serviceInfos map[string]service.Recon
 	return nil
 }
 
-// This is a hacky way to do this but works for an example
-// Probably need either a more complex schema-based mechanism (e.g. Terraform plugins)
-// Or individual typed Set methods for the different types of services
-func logger() service.LoggerService {
+// This isn't ideal in terms of service lookup but is sufficient for an example
+func logger() service.Service {
 	if nil == services {
 		// This command was not setup properly by the main program
 		panic(errors.New("services not initialized properly for command loggerversion"))
 	}
 
-	if nil == services[plugin.Logger] {
-		panic(errors.New("service of type Logger could not be found in command loggerversion"))
+	if nil == services["logger"] {
+		panic(errors.New("service 'logger' could not be found in command loggerversion"))
 	}
 
-	return services[plugin.Logger].(service.LoggerService)
+	return services["logger"]
 }
 
 // Starts the RCP server
 func main() {
-	plugin.Start(&rpccommand.Plugin{Impl: &CommandLoggerVersion{}}, "loggerversion", command.HandshakeConfig)
+	plugin.Start(&rpccommand.Plugin{Impl: &CommandLoggerVersion{}}, "loggerversion", command.HandshakeConfig, nil)
 }

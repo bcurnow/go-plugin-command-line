@@ -1,0 +1,54 @@
+syntax = "proto3";
+package proto;
+option go_package = "./proto";
+
+message Empty {}
+
+message LogRequest {
+    string val = 1;
+}
+
+message NameResponse {
+  string name = 1;
+}
+
+service Service {
+    rpc Name(Empty) returns (NameResponse);
+    rpc Log(LogRequest) returns (Empty);
+}
+
+message HelpResponse {
+  string help = 1;
+}
+
+message ExecuteRequest {
+  repeated string args = 1;
+}
+
+message SetServicesRequest {
+  map<string, Reattach> reattaches = 1;
+}
+
+message Reattach {
+  ReattachConfig reattachConfig = 1;
+  string pluginName = 2;
+}
+
+message ReattachConfig {
+  string protocol = 1;
+  int64 protocolVersion = 2;
+  Addr addr = 3;
+  int64 pid = 4;
+  bool test = 5;
+}
+
+message Addr {
+  string net = 1;
+  string name =2;
+}
+
+service Command {
+  rpc Help(Empty) returns (HelpResponse);
+  rpc Execute(ExecuteRequest) returns (Empty);
+  rpc SetServices(SetServicesRequest) returns (Empty);
+}

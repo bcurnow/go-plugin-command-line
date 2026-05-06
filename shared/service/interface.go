@@ -1,34 +1,13 @@
 package service
 
-import (
-	"encoding/gob"
-
-	"github.com/bcurnow/go-plugin-command-line/shared/plugin"
-)
-
-func init() {
-	// This is needed for the RPC implementations
-	gob.Register(map[string]ReconnectInfo{})
-}
+import "github.com/bcurnow/go-plugin-command-line/shared/plugin"
 
 // Marker interface for all Services
 type Service interface {
 	Name() string
-	Type() plugin.Type
-}
-
-// Logger type of service
-type LoggerService interface {
-	Service
+	// Ideally, this would default a more useful set of methods, this is just an example
 	Log(val string)
 }
-
-// Marker interface for an object that provides information necessary to reconnect to a service
-type ReconnectInfo interface {
-	Name() string
-	Type() plugin.Type
-}
-
 type Register interface {
-	Register(serviceDir string) (map[string]ReconnectInfo, error)
+	Register(serviceDir string) (map[string]plugin.Reattach, error)
 }
