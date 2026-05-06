@@ -1,6 +1,7 @@
 module github.com/bcurnow/go-plugin-command-line
 
 go 1.23
+toolchain go1.24.1
 
 require github.com/hashicorp/go-plugin v1.6.3
 
